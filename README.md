@@ -8,8 +8,7 @@ An interactive, step-by-step walkthrough of how the [cGENIE.cookie](https://gith
 
 | File | Language |
 |---|---|
-| [`index.html`](index.html) | English |
-| [`zh.html`](zh.html) | 中文 |
+| [`cGENIE_timestep_walkthrough_en.html`](cGENIE_timestep_walkthrough_en.html) | English |
 
 Open either file in a browser. They are self-contained apart from Google Fonts.
 
