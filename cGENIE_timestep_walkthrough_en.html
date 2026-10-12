@@ -1,0 +1,839 @@
+<title>cGENIE Time-Step Walkthrough</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap">
+<style>
+/* Layout: one 1120px column — overview flowchart → step player (module map + step card) → module detail tabs */
+:root {
+  --bg: #F2F5F6;
+  --surface: #FFFFFF;
+  --surface-2: #E8EEF0;
+  --ink: #12222A;
+  --muted: #586A72;
+  --line: #C7D3D8;
+  --phys: #2C6C9C;
+  --phys-soft: #DDEAF4;
+  --bgc: #2B8467;
+  --bgc-soft: #DCEFE6;
+  --geo: #A0642A;
+  --geo-soft: #F2E5D5;
+  --off: #9AA5AA;
+  --signal: #B42F79;
+  --signal-soft: #F7E1EE;
+  --sun: #D99A2B;
+  --zone-ocean: #E6EFF5;
+  --zone-land: #ECEDE3;
+  --font-display: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1418; --surface: #131E24; --surface-2: #1A2830; --ink: #E2EBEE; --muted: #93A3AB; --line: #2A3A43;
+    --phys: #72B1E0; --phys-soft: #15304A; --bgc: #5DC3A0; --bgc-soft: #11352A; --geo: #D9A262; --geo-soft: #3A2A18;
+    --off: #5D6A70; --signal: #F06BB4; --signal-soft: #3D1A2E; --sun: #E7B04C; --zone-ocean: #10202B; --zone-land: #1A1F17;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1418; --surface: #131E24; --surface-2: #1A2830; --ink: #E2EBEE; --muted: #93A3AB; --line: #2A3A43;
+  --phys: #72B1E0; --phys-soft: #15304A; --bgc: #5DC3A0; --bgc-soft: #11352A; --geo: #D9A262; --geo-soft: #3A2A18;
+  --off: #5D6A70; --signal: #F06BB4; --signal-soft: #3D1A2E; --sun: #E7B04C; --zone-ocean: #10202B; --zone-land: #1A1F17;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.65; }
+.wrap { max-width: 1120px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 72px; display: grid; gap: 56px; }
+@media (max-width: 480px) { .wrap { padding-inline: 16px; } }
+
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; color: var(--ink); }
+h1 { font-size: clamp(30px, 4.4vw, 44px); line-height: 1.15; font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 25px; line-height: 1.3; font-weight: 700; }
+h3 { font-size: 21px; line-height: 1.35; font-weight: 600; }
+p { margin: 0; }
+code, .mono { font-family: var(--font-mono); font-size: 0.88em; }
+a { color: var(--signal); text-underline-offset: 3px; }
+.eyebrow { font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+header { display: grid; gap: 14px; }
+.lede { max-width: 70ch; color: var(--ink); font-size: 16px; }
+.lede + .lede { color: var(--muted); font-size: 14.5px; }
+.lede code { background: var(--surface-2); padding: 1px 5px; border-radius: 4px; }
+
+section { display: grid; gap: 18px; }
+.sec-head { display: grid; gap: 6px; }
+.sec-head p { color: var(--muted); max-width: 72ch; }
+
+figure { margin: 0; display: grid; gap: 10px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+figcaption { color: var(--muted); font-size: 13.5px; max-width: 82ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); align-items: center; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.sw { width: 12px; height: 12px; border-radius: 3px; border: 1.5px solid; display: inline-block; }
+.sw.phys { background: var(--phys-soft); border-color: var(--phys); }
+.sw.bgc { background: var(--bgc-soft); border-color: var(--bgc); }
+.sw.geo { background: var(--geo-soft); border-color: var(--geo); }
+.sw.off { border-color: var(--off); border-style: dashed; }
+.sw.dash { width: 22px; height: 0; border-radius: 0; border-width: 1.5px 0 0; border-style: dashed; border-color: var(--muted); }
+
+/* ---------- SVG shared ---------- */
+svg { display: block; }
+svg text { font-family: var(--font-body); fill: var(--ink); }
+.n rect { stroke-width: 1.5; transition: opacity .25s, stroke-width .2s; }
+.n.phys rect { fill: var(--phys-soft); stroke: var(--phys); }
+.n.bgc rect { fill: var(--bgc-soft); stroke: var(--bgc); }
+.n.geo rect { fill: var(--geo-soft); stroke: var(--geo); }
+.n.off rect { fill: var(--surface); stroke: var(--off); stroke-dasharray: 4 3; }
+.n .t1 { font-size: 14px; font-weight: 600; }
+.n .t2 { font-size: 12.5px; fill: var(--muted); }
+.n.off text { fill: var(--off); }
+.n[data-tab] { cursor: pointer; }
+.n[data-tab]:hover rect { stroke-width: 2.5; }
+.n[data-tab]:focus { outline: none; }
+.n[data-tab]:focus-visible rect { stroke: var(--signal); stroke-width: 3; }
+.e path { fill: none; stroke: var(--muted); stroke-width: 1.4; }
+.e.dash path { stroke-dasharray: 5 4; }
+.e text { font-size: 12.5px; fill: var(--muted); }
+.ah { fill: var(--muted); }
+.ah-on { fill: var(--signal); }
+.zone { stroke: none; }
+.zone.ocean { fill: var(--zone-ocean); }
+.zone.land { fill: var(--zone-land); }
+.zlabel { font-size: 12.5px; fill: var(--muted); letter-spacing: 0.02em; }
+
+/* overview flow */
+#flow { width: 100%; max-width: 1000px; min-width: 760px; height: auto; margin-inline: auto; }
+.frame { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.frametitle { font-family: var(--font-mono) !important; font-size: 12.5px; fill: var(--muted) !important; }
+.lane-sep { stroke: var(--line); stroke-dasharray: 2 4; }
+.lane-name { font-size: 14px; font-weight: 600; }
+.lane-sub { font-size: 12px; fill: var(--muted) !important; }
+.pill rect { fill: var(--surface-2); stroke: var(--line); }
+.pill text { font-size: 13px; }
+.seq path { fill: none; stroke: var(--ink); stroke-width: 1.4; opacity: .55; }
+.loopnote { font-size: 12.5px; fill: var(--muted) !important; }
+
+/* module map */
+#map { width: 100%; max-width: 700px; min-width: 560px; height: auto; margin-inline: auto; }
+.sun circle { fill: var(--sun); }
+.sun line { stroke: var(--sun); stroke-width: 2; stroke-linecap: round; }
+.sun { transition: opacity .25s; }
+#map.stepping .n, #map.stepping .sun { opacity: .28; }
+#map.stepping .n.on, #map.stepping .sun.on { opacity: 1; }
+#map .n.cur rect { stroke: var(--signal); stroke-width: 3; }
+#map.stepping .e { opacity: .22; transition: opacity .25s; }
+#map.stepping .e.on { opacity: 1; }
+#map .e.on path { stroke: var(--signal); stroke-width: 2.3; }
+#map .e.on text { fill: var(--signal); font-weight: 600; }
+
+/* tick track */
+#track { width: 100%; max-width: 720px; min-width: 640px; height: auto; }
+.colbg { fill: transparent; transition: fill .2s; }
+.col.on .colbg { fill: var(--signal-soft); }
+.col { cursor: pointer; }
+.col:focus { outline: none; }
+.col:focus-visible .colbg { stroke: var(--signal); stroke-width: 2; }
+.kh { font-family: var(--font-mono) !important; font-size: 12.5px; fill: var(--muted) !important; }
+.col.on .kh { fill: var(--signal) !important; font-weight: 600; }
+.rowlab { font-size: 12.5px; fill: var(--muted) !important; }
+.dot.phys { fill: var(--phys); } .dot.bgc { fill: var(--bgc); } .dot.geo { fill: var(--geo); }
+.dot.ring { fill: none; stroke-width: 1.5; }
+.dot.ring.phys { stroke: var(--phys); } .dot.ring.bgc { stroke: var(--bgc); } .dot.ring.geo { stroke: var(--geo); }
+.dot.no { fill: var(--line); }
+#track .dot.cur { stroke: var(--signal); stroke-width: 3; }
+
+/* ---------- player ---------- */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.btns { display: flex; gap: 6px; }
+button { font: inherit; }
+.btn { height: 38px; min-width: 38px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 14px; }
+.btn:hover { border-color: var(--muted); }
+.btn:focus-visible, select:focus-visible, input[type=range]:focus-visible, .tab:focus-visible, .open-tab:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.btn.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); min-width: 96px; font-weight: 500; }
+.btn svg { width: 14px; height: 14px; }
+.btn svg path, .btn svg rect { fill: currentColor; }
+.speed { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--muted); }
+select { font: inherit; font-size: 14px; height: 38px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 0 8px; }
+.scrub { flex: 1 1 220px; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.scrub input { flex: 1; min-width: 0; accent-color: var(--signal); }
+.count { font-family: var(--font-mono); font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kbd-hint { font-size: 12.5px; color: var(--muted); }
+kbd { font-family: var(--font-mono); font-size: 11.5px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--surface); }
+
+.stage { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 16px; align-items: start; }
+@media (max-width: 920px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px 20px; display: grid; gap: 14px; min-width: 0; position: relative; overflow: hidden; }
+.timer { position: absolute; left: 0; top: 0; height: 3px; width: 100%; background: transparent; }
+.timer i { display: block; height: 100%; width: 0; background: var(--signal); }
+.timer.run i { animation: fillbar var(--dur, 5s) linear forwards; }
+@keyframes fillbar { from { width: 0; } to { width: 100%; } }
+.meta { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; color: var(--muted); white-space: nowrap; }
+.chip.k { color: var(--signal); border-color: var(--signal); }
+.call { font-family: var(--font-mono); font-size: 12.5px; background: var(--surface-2); border-radius: 6px; padding: 7px 10px; overflow-wrap: anywhere; line-height: 1.6; }
+.call .src { color: var(--muted); }
+.io { display: grid; gap: 10px; margin: 0; }
+.io > div { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 10px; }
+.io dt { font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; padding-top: 3px; }
+.io dd { margin: 0; }
+.io ul, .mod ul { margin: 0; padding-left: 1.1em; display: grid; gap: 3px; }
+.io li, .mod li { font-size: 14px; }
+.io li::marker, .mod li::marker { color: var(--muted); }
+.note { background: var(--signal-soft); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.note b { color: var(--signal); font-weight: 600; margin-right: 6px; }
+.open-tab { justify-self: start; background: none; border: 0; padding: 0; color: var(--signal); cursor: pointer; font-size: 14px; font-weight: 500; text-decoration: underline; text-underline-offset: 3px; }
+
+/* ---------- module tabs ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tab { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 13px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 14px; }
+.tab .d { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid; }
+.tab .d.phys { background: var(--phys); border-color: var(--phys); }
+.tab .d.bgc { background: var(--bgc); border-color: var(--bgc); }
+.tab .d.geo { background: var(--geo); border-color: var(--geo); }
+.tab .d.off { border-color: var(--off); border-style: dashed; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.mod { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 22px; display: grid; gap: 18px; min-width: 0; }
+.mod-head { display: grid; gap: 6px; }
+.mod-head .full { color: var(--muted); font-size: 14px; }
+.mod .lead { font-size: 15.5px; max-width: 74ch; }
+.cols3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .cols3 { grid-template-columns: minmax(0, 1fr); } }
+.box { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.box h4 { margin: 0; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; }
+td.k { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
+td.v { font-family: var(--font-mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.tablewrap { overflow-x: auto; }
+.pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+@media (max-width: 760px) { .pair { grid-template-columns: minmax(0, 1fr); } }
+.pair .box p { font-size: 14px; }
+.box.rel { background: var(--signal-soft); }
+.box.rel h4 { color: var(--signal); }
+.srcs { font-family: var(--font-mono); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+
+footer { color: var(--muted); font-size: 13px; display: grid; gap: 4px; border-top: 1px solid var(--line); padding-top: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+  .timer { display: none; }
+}
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">cGENIE.cookie · genie-main/genie.F</div>
+  <h1>How cGENIE computes, step by step</h1>
+  <p class="lede">The main program is one <code>do koverall = 1, N</code> loop. On every <strong>master step</strong> (about 18 hours) it goes through the modules in a fixed order and asks whether each one is due: the fast atmosphere runs every step, the ocean every 5, ocean biogeochemistry every 10, and the sediments once a year. Modules never call each other; they exchange fluxes and states through shared interface arrays.</p>
+  <p class="lede">Numbers are for cookie’s default 36×36×16 grid (worjh2 topography, CBSR = climate + BIOGEM + SEDGEM + ROKGEM base config), with time steps written automatically by <code>runcookie.sh</code>.</p>
+</header>
+
+<!-- ============ 1. OVERVIEW ============ -->
+<section aria-labelledby="h-over">
+  <div class="sec-head">
+    <div class="eyebrow">Overview</div>
+    <h2 id="h-over">Call order within one master step</h2>
+    <p>Left to right is the call order; top to bottom is how often each module runs. Click any module to jump to its details.</p>
+  </div>
+  <figure class="panel">
+    <div class="scroll">
+      <svg id="flow" viewBox="0 0 1000 360" role="group" aria-label="cGENIE main loop: on each master step the modules are checked in the order surflux, EMBM, sea ice, GOLDSTEIN, ROKGEM, BIOGEM, ATCHEM, SEDGEM; the four groups run every step, every 5, every 10 and every 480 steps">
+        <defs>
+          <marker id="fa" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+        </defs>
+        <g class="pill"><rect x="20" y="12" width="170" height="34" rx="17"/><text x="105" y="34" text-anchor="middle">start · initialise_*</text></g>
+        <g class="pill"><rect x="810" y="12" width="170" height="34" rx="17"/><text x="895" y="34" text-anchor="middle">end · write restarts</text></g>
+        <g class="seq"><path d="M105,46 V64" marker-end="url(#fa)"/><path d="M895,66 V48" marker-end="url(#fa)"/></g>
+        <text class="loopnote" x="886" y="61" text-anchor="end">exit after k = N</text>
+        <rect class="frame" x="20" y="66" width="960" height="282" rx="14"/>
+        <text class="frametitle" x="36" y="90">do koverall = 1, N    ! 1 master step = 1 yr / 480 ≈ 18.3 h;  N = years × 480</text>
+        <line class="lane-sep" x1="36" y1="159" x2="964" y2="159"/>
+        <line class="lane-sep" x1="36" y1="221" x2="964" y2="221"/>
+        <line class="lane-sep" x1="36" y1="283" x2="964" y2="283"/>
+        <text class="lane-name" x="38" y="124">every step</text><text class="lane-sub" x="38" y="142">480/yr · 18 h</text>
+        <text class="lane-name" x="38" y="186">every 5 steps</text><text class="lane-sub" x="38" y="204">96/yr · 3.8 d</text>
+        <text class="lane-name" x="38" y="248">every 10 steps</text><text class="lane-sub" x="38" y="266">48/yr · 7.6 d</text>
+        <text class="lane-name" x="38" y="310">every 480</text><text class="lane-sub" x="38" y="328">1/yr</text>
+        <g class="seq">
+          <path d="M257,182 L275,138" marker-end="url(#fa)"/>
+          <path d="M359,138 L377,182" marker-end="url(#fa)"/>
+          <path d="M461,190 H479" marker-end="url(#fa)"/>
+          <path d="M563,198 L581,244" marker-end="url(#fa)"/>
+          <path d="M665,252 H684" marker-end="url(#fa)"/>
+          <path d="M768,252 H786" marker-end="url(#fa)"/>
+          <path d="M870,260 L888,304" marker-end="url(#fa)"/>
+          <path d="M930,334 V340 H160 V190 H171" marker-end="url(#fa)"/>
+        </g>
+        <text class="loopnote" x="545" y="333" text-anchor="middle">k → k + 1, back to the start</text>
+        <g class="n phys" data-tab="surflux" tabindex="0" role="button" aria-label="surflux details"><rect x="173" y="168" width="84" height="44" rx="7"/><text class="t1" x="215" y="187" text-anchor="middle">surflux</text><text class="t2" x="215" y="204" text-anchor="middle">fluxes</text></g>
+        <g class="n phys" data-tab="embm" tabindex="0" role="button" aria-label="EMBM details"><rect x="275" y="106" width="84" height="44" rx="7"/><text class="t1" x="317" y="125" text-anchor="middle">EMBM</text><text class="t2" x="317" y="142" text-anchor="middle">air T, q</text></g>
+        <g class="n phys" data-tab="seaice" tabindex="0" role="button" aria-label="sea ice details"><rect x="377" y="168" width="84" height="44" rx="7"/><text class="t1" x="419" y="187" text-anchor="middle">Sea ice</text><text class="t2" x="419" y="204" text-anchor="middle">ice cover</text></g>
+        <g class="n phys" data-tab="goldstein" tabindex="0" role="button" aria-label="GOLDSTEIN details"><rect x="479" y="168" width="84" height="44" rx="7"/><text class="t1" x="521" y="187" text-anchor="middle">GOLDSTEIN</text><text class="t2" x="521" y="204" text-anchor="middle">ocean</text></g>
+        <g class="n geo" data-tab="rokgem" tabindex="0" role="button" aria-label="ROKGEM details"><rect x="581" y="230" width="84" height="44" rx="7"/><text class="t1" x="623" y="249" text-anchor="middle">ROKGEM</text><text class="t2" x="623" y="266" text-anchor="middle">weathering</text></g>
+        <g class="n bgc" data-tab="biogem" tabindex="0" role="button" aria-label="BIOGEM details"><rect x="684" y="230" width="84" height="44" rx="7"/><text class="t1" x="726" y="249" text-anchor="middle">BIOGEM</text><text class="t2" x="726" y="266" text-anchor="middle">ocean BGC</text></g>
+        <g class="n bgc" data-tab="atchem" tabindex="0" role="button" aria-label="ATCHEM details"><rect x="786" y="230" width="84" height="44" rx="7"/><text class="t1" x="828" y="249" text-anchor="middle">ATCHEM</text><text class="t2" x="828" y="266" text-anchor="middle">atm. gases</text></g>
+        <g class="n geo" data-tab="sedgem" tabindex="0" role="button" aria-label="SEDGEM details"><rect x="888" y="290" width="84" height="44" rx="7"/><text class="t1" x="930" y="309" text-anchor="middle">SEDGEM</text><text class="t2" x="930" y="326" text-anchor="middle">sediments</text></g>
+      </svg>
+    </div>
+    <figcaption>Modules that are not due on a step are skipped. At k = 3 only EMBM runs; at k = 5 it is EMBM → sea ice → GOLDSTEIN; at k = 10 everything from EMBM to ATCHEM runs. surflux runs on the first master step of each ocean step (k = 1, 6, 11 …), and the surface fluxes it computes are reused for the next 5 steps.</figcaption>
+    <div class="legend">
+      <span><i class="sw phys"></i>physical climate</span>
+      <span><i class="sw bgc"></i>biogeochemistry</span>
+      <span><i class="sw geo"></i>solid Earth</span>
+    </div>
+  </figure>
+</section>
+
+<!-- ============ 2. PLAYER ============ -->
+<section aria-labelledby="h-play">
+  <div class="sec-head">
+    <div class="eyebrow">Step through</div>
+    <h2 id="h-play">Follow one biogeochemistry cycle</h2>
+    <p>Start at initialisation, walk through k = 1–10 (one full biogeochemistry cycle, about 7.6 days), then jump to the SEDGEM call at the end of the year. The highlighted arrows on the map are the data moving in that step.</p>
+  </div>
+
+  <div class="controls" aria-label="Playback controls">
+    <div class="btns">
+      <button class="btn" id="bPrev" type="button" aria-label="Previous step"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="2" height="12"/><path d="M14 2 L5 8 L14 14 z"/></svg></button>
+      <button class="btn primary" id="bPlay" type="button" aria-label="Play"><svg viewBox="0 0 16 16" aria-hidden="true" id="iPlay"><path d="M3 2 L14 8 L3 14 z"/></svg><span id="tPlay">Play</span></button>
+      <button class="btn" id="bNext" type="button" aria-label="Next step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 2 L11 8 L2 14 z"/><rect x="12" y="2" width="2" height="12"/></svg></button>
+      <button class="btn" id="bReset" type="button">Restart</button>
+    </div>
+    <label class="speed" for="speed">Speed
+      <select id="speed">
+        <option value="8000">Slow</option>
+        <option value="5000" selected>Medium</option>
+        <option value="2500">Fast</option>
+      </select>
+    </label>
+    <div class="scrub">
+      <input type="range" id="scrub" min="0" max="14" value="0" step="1" aria-label="Jump to a step">
+      <span class="count" id="count">1 / 15</span>
+    </div>
+    <span class="kbd-hint"><kbd>←</kbd> <kbd>→</kbd> step, <kbd>Space</kbd> play/pause</span>
+  </div>
+
+  <div class="panel scroll">
+    <svg id="track" viewBox="0 0 720 152" role="group" aria-label="Master-step timeline: each column is a master step k, each row a group of modules; a dot means that group runs on that step"></svg>
+  </div>
+
+  <div class="stage">
+    <figure class="panel">
+      <div class="scroll">
+        <svg id="map" class="stepping" viewBox="0 0 700 500" role="group" aria-label="cGENIE module map: EMBM and ATCHEM in the atmosphere, surflux at the air–sea interface, sea ice, GOLDSTEIN and BIOGEM in the ocean, SEDGEM on the sea floor, ROKGEM on land; arrows show what they exchange">
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+            <marker id="ahon" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-on"/></marker>
+          </defs>
+          <rect class="zone ocean" x="10" y="178" width="520" height="222" rx="10"/>
+          <text class="zlabel" x="20" y="392">ocean · one shared 36×36×16 grid</text>
+          <rect class="zone land" x="545" y="178" width="145" height="288" rx="10"/>
+          <text class="zlabel" x="555" y="197">land</text>
+
+          <g class="e" data-edge="e-sun" data-ends="end"><path d="M38,80 V126"/><text x="46" y="117">insolation</text></g>
+          <g class="e" data-edge="e-es" data-ends="both"><path d="M150,102 V126"/><text x="157" y="119">T, q ⇅ fluxes</text></g>
+          <g class="e" data-edge="e-si" data-ends="both"><path d="M64,158 V186"/><text x="71" y="175">Δice</text></g>
+          <g class="e" data-edge="e-so" data-ends="both"><path d="M170,158 V260"/><text x="177" y="175">SST ⇅ fluxes</text></g>
+          <g class="e" data-edge="e-io" data-ends="both"><path d="M64,222 V260"/><text x="71" y="238">ice melt</text><text x="71" y="254">currents</text></g>
+          <g class="e dash" data-edge="e-wind" data-ends="end"><path d="M265,102 V232 H240 V260"/><text x="272" y="202">wind stress</text><text x="272" y="218">(from file)</text></g>
+          <g class="e" data-edge="e-gb" data-ends="both"><path d="M262,297 H328"/><text x="295" y="289" text-anchor="middle">physics →</text><text x="295" y="317" text-anchor="middle">← Δtracers</text></g>
+          <g class="e" data-edge="e-ab" data-ends="both"><path d="M425,102 V260"/><text x="432" y="196">CO₂ flux ↑</text><text x="432" y="213">pCO₂ ↓</text></g>
+          <g class="e dash" data-edge="e-rad" data-ends="end"><path d="M328,70 H282"/><text x="305" y="30" text-anchor="middle">CO₂ forcing · ea_36</text></g>
+          <g class="e" data-edge="e-ar" data-ends="both"><path d="M522,70 H618 V204"/><text x="612" y="122" text-anchor="end">pCO₂ · air T ↓</text><text x="612" y="139" text-anchor="end">CO₂ sink ↑</text></g>
+          <g class="e" data-edge="e-rb" data-ends="end"><path d="M590,266 V300 H522"/><text x="560" y="292" text-anchor="middle">rivers</text></g>
+          <g class="e" data-edge="e-bs" data-ends="both"><path d="M440,334 V418"/><text x="434" y="368" text-anchor="end">particle rain ↓</text><text x="434" y="385" text-anchor="end">dissolution ↑</text></g>
+          <g class="e" data-edge="e-burial" data-ends="end"><path d="M270,468 V494"/><text x="279" y="490">burial (leaves the system)</text></g>
+
+          <g class="sun" data-node="sun">
+            <circle cx="38" cy="60" r="13"/>
+            <line x1="38" y1="38" x2="38" y2="43"/><line x1="38" y1="77" x2="38" y2="82"/>
+            <line x1="16" y1="60" x2="21" y2="60"/><line x1="55" y1="60" x2="60" y2="60"/>
+            <line x1="22.4" y1="44.4" x2="26" y2="48"/><line x1="50" y1="72" x2="53.6" y2="75.6"/>
+            <line x1="53.6" y1="44.4" x2="50" y2="48"/><line x1="26" y1="72" x2="22.4" y2="75.6"/>
+          </g>
+
+          <g class="n phys" data-node="embm" data-tab="embm" tabindex="0" role="button" aria-label="EMBM details"><rect x="70" y="40" width="210" height="60" rx="8"/><text class="t1" x="175" y="65" text-anchor="middle">EMBM</text><text class="t2" x="175" y="86" text-anchor="middle">air T and q · 2-D</text></g>
+          <g class="n bgc" data-node="atchem" data-tab="atchem" tabindex="0" role="button" aria-label="ATCHEM details"><rect x="330" y="40" width="190" height="60" rx="8"/><text class="t1" x="425" y="65" text-anchor="middle">ATCHEM</text><text class="t2" x="425" y="86" text-anchor="middle">composition · well mixed</text></g>
+          <g class="n phys" data-node="surflux" data-tab="surflux" tabindex="0" role="button" aria-label="surflux details"><rect x="20" y="128" width="200" height="28" rx="6"/><text class="t1" x="120" y="147" text-anchor="middle">surflux · surface fluxes</text></g>
+          <g class="n phys" data-node="seaice" data-tab="seaice" tabindex="0" role="button" aria-label="sea ice details"><rect x="24" y="188" width="80" height="32" rx="6"/><text class="t1" x="64" y="209" text-anchor="middle">sea ice</text></g>
+          <g class="n phys" data-node="goldstein" data-tab="goldstein" tabindex="0" role="button" aria-label="GOLDSTEIN details"><rect x="24" y="262" width="236" height="70" rx="8"/><text class="t1" x="142" y="291" text-anchor="middle">GOLDSTEIN</text><text class="t2" x="142" y="313" text-anchor="middle">3-D circulation · transport</text></g>
+          <g class="n bgc" data-node="biogem" data-tab="biogem" tabindex="0" role="button" aria-label="BIOGEM details"><rect x="330" y="262" width="190" height="70" rx="8"/><text class="t1" x="425" y="291" text-anchor="middle">BIOGEM</text><text class="t2" x="425" y="313" text-anchor="middle">bio pump · carbonate chem.</text></g>
+          <g class="n geo" data-node="sedgem" data-tab="sedgem" tabindex="0" role="button" aria-label="SEDGEM details"><rect x="10" y="420" width="520" height="46" rx="8"/><text class="t1" x="270" y="440" text-anchor="middle">SEDGEM</text><text class="t2" x="270" y="458" text-anchor="middle">deep-sea sediments · CaCO₃ preservation and burial</text></g>
+          <g class="n geo" data-node="rokgem" data-tab="rokgem" tabindex="0" role="button" aria-label="ROKGEM details"><rect x="556" y="206" width="124" height="58" rx="8"/><text class="t1" x="618" y="230" text-anchor="middle">ROKGEM</text><text class="t2" x="618" y="251" text-anchor="middle">weathering</text></g>
+          <g class="n off" data-node="ents" data-tab="off" tabindex="0" role="button" aria-label="Modules not enabled"><rect x="556" y="340" width="124" height="46" rx="8"/><text class="t1" x="618" y="360" text-anchor="middle">ENTS</text><text class="t2" x="618" y="378" text-anchor="middle">vegetation · off</text></g>
+          <g class="n off" data-node="icesheet" data-tab="off" tabindex="0" role="button" aria-label="Modules not enabled"><rect x="556" y="400" width="124" height="46" rx="8"/><text class="t1" x="618" y="420" text-anchor="middle">ice sheets</text><text class="t2" x="618" y="438" text-anchor="middle">not modelled</text></g>
+        </svg>
+      </div>
+      <div class="legend">
+        <span><i class="sw phys"></i>physical climate</span>
+        <span><i class="sw bgc"></i>biogeochemistry</span>
+        <span><i class="sw geo"></i>solid Earth</span>
+        <span><i class="sw off"></i>off by default</span>
+        <span><i class="sw dash"></i>prescribed, or needs a switch</span>
+      </div>
+    </figure>
+
+    <article class="card" id="card" aria-live="polite">
+      <div class="timer" id="timer"><i></i></div>
+      <div class="meta" id="sMeta"></div>
+      <h3 id="sTitle"></h3>
+      <div class="call" id="sCall"></div>
+      <dl class="io">
+        <div><dt>Reads</dt><dd id="sIn"></dd></div>
+        <div><dt>Does</dt><dd id="sCalc"></dd></div>
+        <div><dt>Writes</dt><dd id="sOut"></dd></div>
+      </dl>
+      <p class="note" id="sNote"></p>
+      <button class="open-tab" id="sOpen" type="button"></button>
+    </article>
+  </div>
+</section>
+
+<!-- ============ 3. MODULE TABS ============ -->
+<section aria-labelledby="h-mod" id="modules">
+  <div class="sec-head">
+    <div class="eyebrow">Modules</div>
+    <h2 id="h-mod">What each module computes</h2>
+    <p>The parameter column mostly uses config-file names. Values marked “XML default” come from <code>definition.xml</code>; values marked “worjh2 calibrated” come from the base config. Your own user config may override any of them.</p>
+  </div>
+  <div class="tabs" role="tablist" aria-label="Modules" id="tabs"></div>
+  <div id="panels"></div>
+</section>
+
+<footer>
+  <span>Sources: cgenie.cookie <span class="mono">ed0eacff</span> (2026-08-26) — <span class="mono">genie-main/genie.F</span>, <span class="mono">genie_loop_wrappers.f90</span>, <span class="mono">runcookie.sh</span>, the module sources and <span class="mono">genie-main/src/xml-config/xml/definition.xml</span>.</span>
+  <span>Model code: <a href="https://github.com/genie-model/cgenie.cookie">github.com/genie-model/cgenie.cookie</a> · Manual: <a href="https://github.com/genie-model/cookiedoc">github.com/genie-model/cookiedoc</a></span>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  const DAY = 365.25 / 480;
+  const fmt = k => (k * DAY).toFixed(1);
+  const ALL = ['embm','atchem','surflux','seaice','goldstein','biogem','sedgem','rokgem'];
+
+  /* ---------------- steps ---------------- */
+  const STEPS = [
+    { cols:['init'], rows:['surflux','embm','ocn','bgc','sed'], nodes:ALL, cur:[], edges:['e-gb','e-ab','e-rad','e-bs'], tab:null,
+      chips:['k = 0','t = 0','runs once'],
+      title:'Start-up: read the config, build grids, load the initial state',
+      call:'initialise_genie → initialise_*_wrapper', src:'genie.F:36–113',
+      in:['Config: base config + user config + time steps appended by runcookie.sh','Boundary conditions: worjh2 topography, wind stress, albedo and wind-speed files','A restart file, or initial values (e.g. pCO₂ = 278 ppm, DIC, ALK)'],
+      calc:['Initialise every module whose ma_flag_* switch is on','BIOGEM takes a first copy of the ocean physics; ATCHEM sends the initial atmosphere to the ocean and EMBM; SEDGEM sends its initial dissolution fluxes'],
+      out:['The initial state of every module and the first set of coupling fields'],
+      note:'runcookie.sh writes the time steps from the grid size: 36×36×16 ⇒ 96 ocean steps a year, biogeochemistry every 2 ocean steps, sediments every 96 ocean steps.' },
+
+    { cols:[1], rows:['surflux'], nodes:['surflux','embm','seaice','goldstein','atchem','sun'], cur:['surflux'], edges:['e-sun','e-es','e-si','e-so','e-rad'], tab:'surflux',
+      chips:['k = 1','≈ '+fmt(1)+' d','1st step of each ocean step'],
+      title:'surflux: fluxes between ocean, atmosphere and ice',
+      call:'call surflux_wrapper', src:'genie.F:279  if (mod(koverall,kocn_loop) == 1)',
+      in:['SST, SSS ← GOLDSTEIN','T_atm, q ← EMBM','Ice thickness, cover, temperature, albedo ← sea ice','Insolation (seasonal and latitudinal, precomputed from the orbit)','CO₂ ← ATCHEM (only if ea_36 = y)'],
+      calc:['Shortwave = insolation × (1 − albedo)','Outgoing longwave = f(T_atm) − delf2x · ln(CO₂ / CO₂₀)','Sensible and latent heat, evaporation, precipitation, runoff; sea-ice growth rates'],
+      out:['Atmosphere-side fluxes → EMBM','Surface heat and freshwater fluxes → GOLDSTEIN','Δ thickness, Δ cover → sea ice'],
+      note:'These fluxes are computed once and reused for the next 5 master steps, until k = 6. Both the orbit and CO₂ reach the climate here.' },
+
+    { cols:[1], rows:['embm'], nodes:['embm','surflux'], cur:['embm'], edges:['e-es'], tab:'embm',
+      chips:['k = 1','≈ '+fmt(1)+' d','every step'],
+      title:'EMBM: the atmosphere takes one step',
+      call:'call embm_wrapper', src:'genie.F:299  if (mod(koverall,katm_loop) == 0), katm_loop = 1',
+      in:['Atmosphere-side fluxes from surflux','Prescribed winds uncep / vncep (for advection)'],
+      calc:['Solve 2-D advection–diffusion for T and q, advancing about 18 hours','Humidity above rmax × saturation is removed as precipitation; the latent heat warms the air','No clouds, no momentum equation'],
+      out:['New T_atm, q → the next surflux call','Wind stress (read from file, passed to the ocean unchanged)'],
+      note:'The atmosphere step is one fifth of the ocean step: EMBM runs every master step, the ocean every 5.' },
+
+    { cols:[2,3,4,5], rows:['embm'], nodes:['embm','surflux'], cur:['embm'], edges:['e-es'], tab:'embm',
+      chips:['k = 2 → 5',fmt(2)+' → '+fmt(5)+' d','every step'],
+      title:'The atmosphere runs 4 more steps on its own',
+      call:'call embm_wrapper  × 4', src:'genie.F:299',
+      in:['The same fluxes surflux computed at k = 1'],
+      calc:['EMBM advances 4 more steps with the same surface fluxes','Ocean, sea ice and biogeochemistry stay frozen meanwhile'],
+      out:['T_atm, q at k = 5'],
+      note:'This is multi-rate coupling: the fast atmosphere iterates on its own between ocean updates.' },
+
+    { cols:[5], rows:['ocn'], nodes:['seaice','surflux','goldstein'], cur:['seaice'], edges:['e-si','e-io'], tab:'seaice',
+      chips:['k = 5','≈ '+fmt(5)+' d','every 5 steps'],
+      title:'Sea ice: grow, melt, drift',
+      call:'call gold_seaice_wrapper', src:'genie.F:397  if (mod(koverall,ksic_loop) == 0)',
+      in:['Δ thickness, Δ cover ← surflux (computed at k = 1)','Surface currents u, v ← GOLDSTEIN'],
+      calc:['Thermodynamics: update thickness and cover from the growth/melt rates','Dynamics: ice is advected by the surface currents, plus horizontal diffusion'],
+      out:['Thickness, cover, ice temperature, albedo → the next surflux call','Freshwater and heat from freezing and melting → GOLDSTEIN'],
+      note:'The ice–albedo feedback closes here: ice cover changes the shortwave absorbed in surflux, which changes the next growth rate.' },
+
+    { cols:[5], rows:['ocn'], nodes:['goldstein','surflux','seaice','embm'], cur:['goldstein'], edges:['e-so','e-io','e-wind'], tab:'goldstein',
+      chips:['k = 5','≈ '+fmt(5)+' d','every 5 steps'],
+      title:'GOLDSTEIN: the ocean takes one step',
+      call:'call goldstein_wrapper', src:'genie.F:411  if (mod(koverall,kocn_loop) == 0)',
+      in:['Surface heat and freshwater fluxes ← surflux','Ice-melt fluxes ← sea ice','Wind stress ← EMBM (prescribed)'],
+      calc:['Solve frictional-geostrophic balance for the 3-D flow (rigid lid)','Advect, diffuse (isopycnal + vertical) and convectively adjust T, S and every biogeochemical tracer (DIC, ALK, PO₄, O₂ …)','One ocean step ≈ 3.8 days'],
+      out:['SST, SSS → surflux','Surface currents → sea ice','T, S, flow, mixed-layer depth → BIOGEM (picked up when BIOGEM runs)'],
+      note:'GOLDSTEIN moves the biogeochemical tracers; BIOGEM only does the reactions. This config carries 14 tracers: T, S and 12 biogeochemical ones.' },
+
+    { cols:[6], rows:['surflux'], nodes:['surflux','embm','seaice','goldstein','atchem','sun'], cur:['surflux'], edges:['e-sun','e-es','e-si','e-so','e-rad'], tab:'surflux',
+      chips:['k = 6','≈ '+fmt(6)+' d','1st step of each ocean step'],
+      title:'The second ocean step begins: recompute the surface fluxes',
+      call:'call surflux_wrapper', src:'genie.F:279',
+      in:['SST, sea ice and air T, q as updated at k = 5'],
+      calc:['Same as k = 1: recompute every interface flux from the new state'],
+      out:['A new set of fluxes for k = 6–10'],
+      note:'From here, k = 6–10 repeats the physics of k = 1–5.' },
+
+    { cols:[6,7,8,9,10], rows:['embm','ocn'], nodes:['embm','seaice','goldstein','surflux'], cur:['embm','seaice','goldstein'], edges:['e-es','e-si','e-so','e-io','e-wind'], tab:'goldstein',
+      chips:['k = 6 → 10','→ '+fmt(10)+' d','physics'],
+      title:'Atmosphere 5 steps; sea ice and ocean 1 step each',
+      call:'embm_wrapper × 5 → gold_seaice_wrapper → goldstein_wrapper', src:'genie.F:299–418',
+      in:['The interface fluxes from k = 6'],
+      calc:['EMBM every step; at k = 10 sea ice and GOLDSTEIN advance one step each'],
+      out:['The full physical state at k = 10'],
+      note:'By k = 10 the ocean has taken 2 steps (≈ 7.6 days), so mod(k, 2 × 5) = 0 and the biogeochemistry modules are due.' },
+
+    { cols:[10], rows:['bgc'], nodes:['rokgem','atchem','biogem'], cur:['rokgem'], edges:['e-ar','e-rb'], tab:'rokgem',
+      chips:['k = 10','≈ '+fmt(10)+' d','every 10 steps'],
+      title:'ROKGEM: weathering on land',
+      call:'call rokgem_wrapper → cpl_flux_rokatm → cpl_flux_rokocn', src:'genie.F:454–480',
+      in:['pCO₂, air temperature ← ATCHEM interface array','Land runoff ← surflux'],
+      calc:['Carbonate and silicate weathering fluxes','Volcanic CO₂ outgassing','Optional: weathering that responds to temperature and runoff (the silicate weathering feedback)'],
+      out:['CO₂ sources and sinks → ATCHEM','River ALK, DIC, Ca → BIOGEM (coastal cells)'],
+      note:'The XML defaults set weathering and outgassing to 0 and leave temperature dependence off. ROKGEM opens the system: over long times, weathering input balances sediment burial.' },
+
+    { cols:[10], rows:['bgc'], nodes:['biogem','goldstein','atchem','sedgem','rokgem'], cur:['biogem'], edges:['e-gb','e-ab','e-bs','e-rb'], tab:'biogem',
+      chips:['k = 10','≈ '+fmt(10)+' d','every 10 steps'],
+      title:'BIOGEM: chemistry and biology in the ocean',
+      call:'call biogem_forcing_wrapper → biogem_wrapper', src:'genie.F:545–555',
+      in:['T, S, flow, ice cover, insolation (from the last biogem_climate call)','Atmospheric pCO₂ ← ATCHEM','Dissolution flux ← SEDGEM; weathering input ← ROKGEM'],
+      calc:['① Water-column remineralisation: the previous step’s particles are broken down with depth; DOM decays','② Carbonate chemistry: solve pH, CO₃²⁻, Ω and surface pCO₂ from DIC, ALK, T, S','③ Air–sea exchange: flux ∝ k(wind speed) × partial-pressure difference','④ Add the weathering input','⑤ Surface production: PO₄ uptake × light × ice-free fraction; 66 % goes to DOM, the rest sinks as POC and CaCO₃'],
+      out:['Biogeochemical tracer increments for every cell','Air–sea fluxes','Particle rain reaching the sea floor'],
+      note:'This is where temperature affects CO₂: through solubility (② ③) and, if temperature-dependent remineralisation is switched on, through ①.' },
+
+    { cols:[10], rows:['bgc'], nodes:['biogem','goldstein','atchem','sedgem'], cur:['biogem'], edges:['e-gb','e-ab','e-bs'], tab:'biogem',
+      chips:['k = 10','≈ '+fmt(10)+' d','every 10 steps'],
+      title:'BIOGEM wrap-up: hand the results on',
+      call:'biogem_tracercoupling → biogem_climate → diag_* → cpl_flux_ocnatm → cpl_flux_ocnsed → cpl_comp_ocnsed', src:'genie.F:556–571',
+      in:['The increments and fluxes BIOGEM just computed'],
+      calc:['Write the increments back into GOLDSTEIN’s tracer array','Take a fresh copy of the ocean physics for next time','Write diagnostics (time-slices, time-series)','Add the air–sea fluxes to ATCHEM’s running total; add particle rain and bottom-water chemistry to SEDGEM’s'],
+      out:['Updated ocean tracers (moved by GOLDSTEIN on its next step)','Accumulated fluxes → ATCHEM, SEDGEM','biogem_series_*.res, fields_biogem_*.nc'],
+      note:'SEDGEM runs only once a year, so here the particle rain is only booked; it is settled at the end of the year.' },
+
+    { cols:[10], rows:['bgc'], nodes:['atchem','embm','biogem','rokgem'], cur:['atchem'], edges:['e-ab','e-rad','e-ar'], tab:'atchem',
+      chips:['k = 10','≈ '+fmt(10)+' d','every 10 steps'],
+      title:'ATCHEM: update atmospheric CO₂',
+      call:'call atchem_wrapper → cpl_comp_EMBMatm → cpl_comp_atmocn', src:'genie.F:588–600',
+      in:['Accumulated air–sea flux ← BIOGEM','Weathering uptake and outgassing ← ROKGEM','Air temperature ← EMBM'],
+      calc:['Composition += flux × time step','Homogenise over all grid cells: the atmosphere is one well-mixed box','CH₄ oxidation, radioactive decay, etc.'],
+      out:['pCO₂ → BIOGEM (next gas exchange)','CO₂ → surflux radiation (only if ea_36 = y)','pCO₂, air temperature → ROKGEM'],
+      note:'In cGENIE, CO₂ is an output: it builds up from air–sea and weathering fluxes. With ea_36 = y it then feeds back on climate through surflux.' },
+
+    { cols:['mid'], rows:[], nodes:ALL, cur:[], edges:[], tab:null,
+      chips:['k = 11 … 479',fmt(10)+' → '+fmt(479)+' d','loop'],
+      title:'The same 10 steps repeat 48 times a year',
+      call:'the k = 1–10 pattern repeats', src:'',
+      in:['The full state from the previous cycle'],
+      calc:['1 year = 480 master steps = 96 ocean steps = 48 biogeochemistry steps','Meanwhile SEDGEM keeps accumulating the particle rain from BIOGEM'],
+      out:['The state at k = 479'],
+      note:'10,000 years is 4.8 million master steps. Each step is cheap, which is why cGENIE can run that long.' },
+
+    { cols:[480], rows:['sed'], nodes:['sedgem','biogem'], cur:['sedgem'], edges:['e-bs','e-burial'], tab:'sedgem',
+      chips:['k = 480','= 1 yr','every 480 steps'],
+      title:'Year end: SEDGEM settles the sediments',
+      call:'call sedgem_wrapper → cpl_flux_sedocn → cpl_comp_sedocn', src:'genie.F:647–663',
+      in:['One year of accumulated particle rain (POC, CaCO₃, detrital)','Annual-mean bottom-water chemistry'],
+      calc:['For each deep-sea cell, decide from bottom-water [CO₃²⁻] and POC rain whether CaCO₃ is preserved or dissolved','Update the surface sediment composition and bury the excess'],
+      out:['Dissolution flux → BIOGEM (added back over the next year)','Burial → leaves the system'],
+      note:'At k = 480 the physics and biogeochemistry run first as usual; SEDGEM comes last. Carbonate compensation happens here, on timescales of a thousand years or more.' },
+
+    { cols:['end'], rows:['surflux','embm','ocn','bgc','sed'], nodes:ALL, cur:[], edges:[], tab:null,
+      chips:['k = N','run ends'],
+      title:'End: save restarts',
+      call:'*_save_restart_wrapper → end_*', src:'genie.F:881–1001',
+      in:['The full state at the final step'],
+      calc:['ECOGEM, BIOGEM, ATCHEM, SEDGEM and ROKGEM each write a restart','Modules shut down in turn'],
+      out:['Restart files: the next experiment can continue from here'],
+      note:'The usual workflow is a long spin-up to equilibrium, then perturbation experiments started from its restart.' }
+  ];
+
+  /* ---------------- modules ---------------- */
+  const MODS = [
+    { key:'surflux', fam:'phys', name:'surflux', full:'Air–sea–ice interface fluxes · a subroutine of EMBM',
+      freq:['every 5 master steps','96 / yr','1st step of each ocean step'],
+      lead:'Not a separate module but a subroutine inside EMBM. It turns the states of the atmosphere, ocean and sea ice into the energy and water fluxes between them. Both orbital and CO₂ effects on climate enter here.',
+      in:['SST, SSS ← GOLDSTEIN','T_atm, q ← EMBM','Ice thickness, cover, temperature, albedo ← sea ice','Insolation (computed from the orbit in radfor.F)','CO₂, CH₄, N₂O ← ATCHEM (only if ea_36 = y)'],
+      calc:['Shortwave = insolation × (1 − albedo)','Outgoing longwave = f(T_atm) − delf2x · ln(CO₂/CO₂₀) − CH₄ and N₂O terms','Sensible and latent heat, evaporation; precipitation, land runoff','Sea-ice growth and melt rates'],
+      out:['Atmosphere-side fluxes → EMBM','Surface heat and freshwater fluxes → GOLDSTEIN','Δ thickness, Δ cover → sea ice','Land runoff → ROKGEM; insolation → BIOGEM'],
+      params:[['ea_36','n (XML default)','Use ATCHEM’s greenhouse gases for radiation? Most user configs shipped with cookie set y'],['ea_delf2x','5.77 W m⁻²','CO₂ forcing coefficient: doubling CO₂ ≈ 5.77 × ln 2 ≈ 4.0 W m⁻²'],['ea_par_albedo1d_name','worjh2.albd.dat','Prescribed zonal albedo profile (worjh2 base config)']],
+      rel:'With ea_36 = n, nothing ATCHEM does to CO₂ changes temperature: climate drives the carbon cycle, but not the other way round. Check this switch before any CO₂-feedback experiment.',
+      had:'What HadCM3’s radiation scheme and boundary layer compute is reduced here to a few empirical formulas.',
+      src:['genie-embm/src/fortran/surflux.F','genie-embm/src/fortran/radfor.F (insolation)'] },
+
+    { key:'embm', fam:'phys', name:'EMBM', full:'Energy–Moisture Balance Model · 2-D atmosphere',
+      freq:['every master step','480 / yr','Δt ≈ 18.3 h'],
+      lead:'Just two prognostic fields: near-surface air temperature T and specific humidity q. No clouds and no momentum equation; the winds are a prescribed climatology read from file.',
+      in:['Atmosphere-side fluxes from surflux (refreshed every 5 steps)','Prescribed winds uncep / vncep (for advection)','Wind-stress files taux / tauy'],
+      calc:['Advection–diffusion of T and q, with latitude-dependent diffusivity','Humidity above rmax × saturation is removed as precipitation','The latent heat of condensation warms the air'],
+      out:['T_atm, q → surflux','Wind stress → GOLDSTEIN (passed on unchanged; it does not respond to climate)','Air temperature → ATCHEM interface array (for ROKGEM)'],
+      params:[['ea_par_orbit_osce','0.0167','Eccentricity (modern)'],['ea_par_orbit_oscsob','0.397789','Sine of obliquity (≈ 23.4°)'],['ea_par_orbit_oscgam','102.92','Longitude of perihelion (°)'],['ma_genie_solar_constant','1368','Solar constant, W m⁻²'],['ea_12 / ea_13','5.2×10⁶ / 1.17×10⁶','T / q diffusivity amplitude, m² s⁻¹ (worjh2 calibrated)'],['ea_adv_u / ea_adv_v','uncep.silo / vncep.silo','Prescribed winds for advection']],
+      rel:'Changing the orbit changes only the insolation; atmospheric circulation and wind stress do not adjust. If circulation changes from the HadCM3 orbital runs should come in too, the winds and wind stress are the boundary conditions to replace.',
+      had:'Roughly HadCM3’s atmosphere collapsed to a single layer that keeps only heat and moisture transport, without the dynamical core or clouds.',
+      src:['genie-embm/src/fortran/embm.F','genie-main/genie.F:299'] },
+
+    { key:'seaice', fam:'phys', name:'Sea ice', full:'GOLDSTEIN sea ice · thermodynamics + simple dynamics',
+      freq:['every 5 master steps','96 / yr','Δt ≈ 3.8 d'],
+      lead:'Two quantities per grid cell: mean ice thickness and fractional ice cover.',
+      in:['Δ thickness, Δ cover ← surflux','Surface currents u, v ← GOLDSTEIN'],
+      calc:['Update thickness and cover from surflux’s growth and melt rates','Advect the ice with the surface currents','Horizontal diffusion'],
+      out:['Thickness, cover, ice temperature, albedo → surflux','Freshwater and heat from freezing and melting → GOLDSTEIN','Ice cover → BIOGEM (blocks light and gas exchange)'],
+      params:[['gs_11','3573.7','Sea-ice diffusivity, m² s⁻¹ (worjh2 calibrated)'],['ma_ksic_loop','5','Every 5 master steps (written by runcookie.sh)']],
+      rel:'The ice–albedo feedback closes through it, and ice cover suppresses high-latitude air–sea CO₂ exchange.',
+      had:'Simpler than HadCM3’s sea ice: there is no ice rheology, and the ice just drifts with the ocean currents.',
+      src:['genie-goldsteinseaice/src/fortran/gold_seaice.F'] },
+
+    { key:'goldstein', fam:'phys', name:'GOLDSTEIN', full:'Frictional-geostrophic 3-D ocean',
+      freq:['every 5 master steps','96 / yr','Δt ≈ 3.8 d'],
+      lead:'Ocean physics plus the transport of every tracer. The momentum equation drops advection and uses friction instead. That makes it fast, but there are no eddies and the western boundary currents are crude.',
+      in:['Surface heat and freshwater fluxes ← surflux','Ice-melt fluxes ← sea ice','Wind stress ← EMBM (prescribed)','Biogeochemical tracer increments ← BIOGEM'],
+      calc:['Solve frictional-geostrophic balance for the 3-D flow (rigid lid)','Advect and diffuse (isopycnal + vertical) T, S and all biogeochemical tracers','Convective adjustment wherever the column is statically unstable'],
+      out:['SST, SSS → surflux','Surface currents → sea ice','T, S, flow, mixed-layer depth, density → BIOGEM'],
+      params:[['grid','36 × 36 × 16','10° in longitude; equal steps in sin φ; 16 levels down to 5000 m'],['go_14','1494','Isopycnal (horizontal) diffusivity, m² s⁻¹ (worjh2 calibrated)'],['go_15','2.5×10⁻⁵','Vertical diffusivity, m² s⁻¹'],['go_16','2.71','Inverse frictional drag (days)'],['go_13','1.53','Wind-stress scaling'],['GOLDSTEINNTRACS','14','Total tracers = T, S + 12 biogeochemical']],
+      rel:'Ocean temperature comes from here: it sets CO₂ solubility and, if enabled, the rate of temperature-dependent remineralisation. Circulation strength (e.g. the AMOC) sets how long carbon stays in the deep ocean.',
+      had:'A heavily simplified HadCM3 ocean (1.25° × 20 levels): about 10° resolution and only 96 steps a year.',
+      src:['genie-goldstein/src/fortran/goldstein.F','genie-main/genie.F:411'] },
+
+    { key:'biogem', fam:'bgc', name:'BIOGEM', full:'Ocean biogeochemistry',
+      freq:['every 10 master steps','48 / yr','Δt ≈ 7.6 d'],
+      lead:'Computes the reactions on GOLDSTEIN’s grid: the biological pump, carbonate chemistry and gas exchange. Transport is left to GOLDSTEIN.',
+      in:['T, S, flow, ice cover, insolation ← biogem_climate','pCO₂ and other atmospheric tracers ← ATCHEM','Dissolution flux ← SEDGEM','Weathering input ← ROKGEM'],
+      calc:['① Water-column remineralisation: the previous step’s particles are spread over depth by an e-folding profile; DOM decays','② Carbonate chemistry: solve pH, CO₃²⁻, Ω and surface pCO₂','③ Air–sea exchange: flux ∝ k(wind speed) × partial-pressure difference','④ Add the weathering input','⑤ Surface production: PO₄ uptake × light × ice-free fraction; 66 % to DOM, the rest sinks as POC and CaCO₃'],
+      out:['Tracer increments → GOLDSTEIN','Air–sea fluxes → ATCHEM','Particle rain, bottom-water chemistry → SEDGEM','biogem_series_*.res, fields_biogem_*.nc'],
+      params:[['bg_par_bio_prodopt',"'1N1T_PO4MM'",'Single-nutrient (PO₄) scheme with Michaelis–Menten uptake (XML default)'],['bg_par_bio_k0_PO4','2.0×10⁻⁶','Max PO₄ uptake rate, mol kg⁻¹ yr⁻¹'],['bg_par_bio_red_DOMfrac','0.66','Fraction of production going to DOM'],['bg_par_bio_remin_POC_eL1','500 (XML) / 589.9 (common)','POC remineralisation e-folding depth, m'],['bg_par_bio_remin_CaCO3_eL1','1000','CaCO₃ dissolution e-folding depth, m'],['bg_ctrl_bio_remin_POC_fixed','.true. (XML)','.false. switches to Arrhenius temperature-dependent remineralisation'],['bg_par_gastransfer_a','0.310','Gas-transfer coefficient']],
+      rel:'Both routes by which temperature affects CO₂ are here: solubility (② ③), and, with bg_ctrl_bio_remin_POC_fixed = .false., a remineralisation depth that changes with temperature and so alters the efficiency of the biological pump.',
+      had:'Standard HadCM3 does none of this. HadOCC in HadCM3LC is the same kind of component, though BIOGEM’s chemistry is more complete.',
+      src:['genie-biogem/src/fortran/biogem.f90','genie-biogem/src/fortran/biogem_box.f90 (remineralisation, carbonate chemistry)'] },
+
+    { key:'atchem', fam:'bgc', name:'ATCHEM', full:'Atmospheric composition',
+      freq:['every 10 master steps','48 / yr','Δt ≈ 7.6 d'],
+      lead:'The ledger for atmospheric composition: pCO₂, pO₂, δ¹³C and so on. After each update it is homogenised globally, so the atmosphere behaves as one well-mixed box.',
+      in:['Accumulated air–sea fluxes ← BIOGEM','Weathering uptake and outgassing ← ROKGEM','Air temperature ← EMBM'],
+      calc:['Composition += flux × time step','Global homogenisation','CH₄ oxidation, radioactive decay, etc.'],
+      out:['pCO₂ → BIOGEM (next gas exchange)','CO₂ → surflux radiation (only if ea_36 = y)','pCO₂, air temperature → ROKGEM'],
+      params:[['ac_atm_init_3','278×10⁻⁶ atm','Initial pCO₂ (CBSR base config)'],['ac_atm_init_4','−6.5 ‰','Initial δ¹³C'],['ac_atm_init_6','0.2095 atm','Initial pO₂'],['ma_conv_kocn_katchem','2','Every 2 ocean steps (written by runcookie.sh)']],
+      rel:'This is the output you are after: CO₂ is not read in but accumulates from air–sea and weathering fluxes. In control runs it can be held at a fixed value with a restoring forcing.',
+      had:'In HadCM3, CO₂ is a prescribed number; here it is a prognostic variable.',
+      src:['genie-atchem/src/fortran/atchem.f90'] },
+
+    { key:'rokgem', fam:'geo', name:'ROKGEM', full:'Terrestrial rock weathering',
+      freq:['every 10 master steps','48 / yr','Δt ≈ 7.6 d'],
+      lead:'Weathering on land plus volcanic outgassing. It opens the system: carbon enters from rocks and leaves through sediment burial.',
+      in:['pCO₂, air temperature ← ATCHEM interface array','Land runoff ← surflux'],
+      calc:['Carbonate weathering: CaCO₃ + CO₂ + H₂O → Ca²⁺ + 2HCO₃⁻','Silicate weathering (the long-term CO₂ sink)','Volcanic CO₂ outgassing','Optional: weathering that responds to temperature and runoff'],
+      out:['CO₂ sources and sinks → ATCHEM','River ALK, DIC, Ca → BIOGEM (coastal cells)'],
+      params:[['rg_par_weather_CaCO3','0.0','Carbonate weathering, mol yr⁻¹ (XML default)'],['rg_par_weather_CaSiO3','0.0','Silicate weathering, mol yr⁻¹'],['rg_par_outgas_CO2','0.0','Volcanic outgassing, mol yr⁻¹'],['rg_opt_weather_T_Ca / _T_Si','.false.','Make weathering depend on air temperature?']],
+      rel:'The carbonate weathering–burial balance takes about 10⁴ years and the silicate weathering feedback about 10⁵ years, the same order as orbital cycles. A common approach is to fix the fluxes to balance burial first, then decide whether to switch on the temperature feedback.',
+      had:'No HadCM3 equivalent.',
+      src:['genie-rokgem/src/fortran/rokgem.f90'] },
+
+    { key:'sedgem', fam:'geo', name:'SEDGEM', full:'Deep-sea sediments',
+      freq:['every 480 master steps','1 / yr','Δt = 1 yr'],
+      lead:'The sea floor’s year-end accounting: once a year it decides how much of the CaCO₃ that rained down is preserved and how much dissolves back into seawater.',
+      in:['One year of accumulated particle rain (POC, CaCO₃, detrital) ← BIOGEM','Annual-mean bottom-water chemistry ← BIOGEM'],
+      calc:['Set CaCO₃ preservation from bottom-water [CO₃²⁻] and POC rain','Update the surface sediment composition','Bury the excess'],
+      out:['Dissolution flux → BIOGEM (added back over the next year)','Burial → removed from the system','fields_sedgem_*.nc and other output'],
+      params:[['ma_conv_kocn_ksedgem','96','Every 96 ocean steps = 1 year (written by runcookie.sh)'],['sg_par_sed_diagen_CaCO3opt',"'none' (XML) / 'ridgwell2001lookup' (common)",'CaCO₃ preservation scheme'],['SEDGEMNLONS / NLATS','36 × 36','Sediment grid (72 × 72 also available)']],
+      rel:'Carbonate compensation happens here, on timescales of a thousand years or more. It controls long-term ocean ALK and matters a great deal for the CO₂ response on orbital timescales.',
+      had:'No HadCM3 equivalent.',
+      src:['genie-sedgem/src/fortran/sedgem.f90','genie-sedgem/src/fortran/sedgem_box.f90'] },
+
+    { key:'off', fam:'off', name:'Not enabled', full:'Modules switched off by default',
+      lead:'The crossed-out parts of the classic cGENIE schematic, plus a few optional modules, all controlled by ma_flag_* switches. The CBSR base config turns on only EMBM, GOLDSTEIN, sea ice, BIOGEM, ATCHEM, SEDGEM and ROKGEM.',
+      table:[['ENTS','ma_flag_ents','Land vegetation and soil carbon'],['ECOGEM','ma_flag_ecogem','A plankton ecosystem model with several functional types, replacing BIOGEM’s simple production'],['GEMlite','ma_flag_gemlite','Speeds up long runs by alternating full steps with fast geochemistry-only steps'],['PLASIM','ma_flag_plasimatmos','A 3-D GCM atmosphere in place of EMBM'],['Ice sheets','—','Not modelled; ice sheets can only be imposed as boundary conditions (topography, albedo)']],
+      src:['genie-main/genie.F:36–113 (where each module’s switch is checked)'] }
+  ];
+
+  /* ---------------- helpers ---------------- */
+  const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
+  const ul = arr => '<ul>' + arr.map(x => '<li>' + x + '</li>').join('') + '</ul>';
+  const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const NAME = Object.fromEntries(MODS.map(m => [m.key, m.name]));
+
+  /* ---------------- tick track ---------------- */
+  const COLS = ['init',1,2,3,4,5,6,7,8,9,10,'mid',480,'end'];
+  const ROWS = [
+    { key:'surflux', label:'surflux', fam:'phys', fires: k => k === 1 || k === 6 },
+    { key:'embm',    label:'EMBM', fam:'phys', fires: k => typeof k === 'number' },
+    { key:'ocn',     label:'sea ice · ocean', fam:'phys', fires: k => typeof k === 'number' && k % 5 === 0 },
+    { key:'bgc',     label:'ROK · BIO · ATM', fam:'bgc', fires: k => typeof k === 'number' && k % 10 === 0 },
+    { key:'sed',     label:'SEDGEM', fam:'geo', fires: k => k === 480 }
+  ];
+  const colX = i => 150 + i * 40;
+  const rowY = j => 46 + j * 24;
+  (function buildTrack() {
+    const svg = $('#track');
+    let h = '<text class="rowlab" x="8" y="22">step k</text>';
+    ROWS.forEach((r, j) => { h += `<text class="rowlab" x="8" y="${rowY(j) + 4}">${r.label}</text>`; });
+    COLS.forEach((c, i) => {
+      const x = colX(i);
+      const head = c === 'init' ? 'init' : c === 'end' ? 'end' : c === 'mid' ? '…' : String(c);
+      h += `<g class="col" data-col="${c}" tabindex="0" role="button" aria-label="Jump to ${head}">`;
+      h += `<rect class="colbg" x="${x - 18}" y="6" width="36" height="142" rx="6"/>`;
+      h += `<text class="kh" x="${x}" y="22" text-anchor="middle">${head}</text>`;
+      ROWS.forEach((r, j) => {
+        const y = rowY(j);
+        if (c === 'init' || c === 'end') h += `<circle class="dot ring ${r.fam}" data-row="${r.key}" cx="${x}" cy="${y}" r="5"/>`;
+        else if (c === 'mid') h += `<circle class="dot no" cx="${x}" cy="${y}" r="1.6"/>`;
+        else if (r.fires(c)) h += `<circle class="dot ${r.fam}" data-row="${r.key}" cx="${x}" cy="${y}" r="5.5"/>`;
+        else h += `<circle class="dot no" cx="${x}" cy="${y}" r="2"/>`;
+      });
+      h += '</g>';
+    });
+    svg.innerHTML = h;
+  })();
+
+  /* ---------------- tabs ---------------- */
+  (function buildTabs() {
+    const tabs = $('#tabs'), panels = $('#panels');
+    tabs.innerHTML = MODS.map((m, i) =>
+      `<button class="tab" role="tab" id="tab-${m.key}" aria-controls="pan-${m.key}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}" data-key="${m.key}"><i class="d ${m.fam}"></i>${m.name}</button>`).join('');
+    panels.innerHTML = MODS.map((m, i) => {
+      let body = `<div class="mod-head"><h3>${m.name}</h3><div class="full">${m.full}</div>`;
+      if (m.freq) body += `<div class="meta">${m.freq.map(f => `<span class="chip">${f}</span>`).join('')}</div>`;
+      body += `</div><p class="lead">${m.lead}</p>`;
+      if (m.table) {
+        body += `<div class="tablewrap"><table><thead><tr><th>Module</th><th>Switch</th><th>Role</th></tr></thead><tbody>${m.table.map(r => `<tr><td>${r[0]}</td><td class="k">${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div>`;
+      } else {
+        body += `<div class="cols3"><div class="box"><h4>Reads</h4>${ul(m.in)}</div><div class="box"><h4>Does</h4>${ul(m.calc)}</div><div class="box"><h4>Writes</h4>${ul(m.out)}</div></div>`;
+        body += `<div class="tablewrap"><table><thead><tr><th>Parameter</th><th>Value</th><th>Meaning</th></tr></thead><tbody>${m.params.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td><td>${r[2]}</td></tr>`).join('')}</tbody></table></div>`;
+        body += `<div class="pair"><div class="box rel"><h4>For the orbital–CO₂ question</h4><p>${m.rel}</p></div><div class="box"><h4>Compared with HadCM3</h4><p>${m.had}</p></div></div>`;
+      }
+      body += `<div class="srcs">Source: ${m.src.join(' · ')}</div>`;
+      return `<div class="mod" role="tabpanel" id="pan-${m.key}" aria-labelledby="tab-${m.key}" tabindex="0" ${i === 0 ? '' : 'hidden'}>${body}</div>`;
+    }).join('');
+  })();
+
+  function openTab(key, opts) {
+    opts = opts || {};
+    $$('.tab').forEach(t => { const on = t.dataset.key === key; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; if (on && opts.focusTab) t.focus(); });
+    $$('.mod').forEach(p => { p.hidden = p.id !== 'pan-' + key; });
+    if (opts.scroll) $('#modules').scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+  }
+  $('#tabs').addEventListener('click', e => { const t = e.target.closest('.tab'); if (t) openTab(t.dataset.key); });
+  $('#tabs').addEventListener('keydown', e => {
+    const list = $$('.tab'); const i = list.indexOf(document.activeElement);
+    if (i < 0) return;
+    let j = null;
+    if (e.key === 'ArrowRight') j = (i + 1) % list.length;
+    else if (e.key === 'ArrowLeft') j = (i - 1 + list.length) % list.length;
+    else if (e.key === 'Home') j = 0;
+    else if (e.key === 'End') j = list.length - 1;
+    if (j !== null) { e.preventDefault(); e.stopPropagation(); openTab(list[j].dataset.key, { focusTab: true }); }
+  });
+
+  $$('svg .n[data-tab]').forEach(n => {
+    const go = () => openTab(n.dataset.tab, { scroll: true });
+    n.addEventListener('click', go);
+    n.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); go(); } });
+  });
+
+  /* ---------------- player ---------------- */
+  let idx = 0, playing = false, timer = null;
+  const scrub = $('#scrub');
+  scrub.max = STEPS.length - 1;
+
+  function setMarkers(g, on) {
+    const p = g.querySelector('path');
+    const m = on ? 'url(#ahon)' : 'url(#ah)';
+    p.setAttribute('marker-end', m);
+    if (g.dataset.ends === 'both') p.setAttribute('marker-start', m); else p.removeAttribute('marker-start');
+  }
+
+  function render() {
+    const s = STEPS[idx];
+    $('#count').textContent = (idx + 1) + ' / ' + STEPS.length;
+    scrub.value = idx;
+    $('#sMeta').innerHTML = s.chips.map((c, i) => `<span class="chip${i === 0 ? ' k' : ''}">${c}</span>`).join('');
+    $('#sTitle').textContent = s.title;
+    $('#sCall').innerHTML = s.call + (s.src ? `<br><span class="src">${s.src}</span>` : '');
+    $('#sIn').innerHTML = ul(s.in);
+    $('#sCalc').innerHTML = ul(s.calc);
+    $('#sOut').innerHTML = ul(s.out);
+    const note = $('#sNote');
+    note.hidden = !s.note;
+    note.innerHTML = s.note ? '<b>Key point</b>' + s.note : '';
+    const open = $('#sOpen');
+    open.hidden = !s.tab;
+    if (s.tab) { open.textContent = 'Open ' + NAME[s.tab] + ' details ↓'; open.dataset.tab = s.tab; }
+
+    $$('#map [data-node]').forEach(n => {
+      n.classList.toggle('on', s.nodes.includes(n.dataset.node));
+      n.classList.toggle('cur', s.cur.includes(n.dataset.node));
+    });
+    $$('#map [data-edge]').forEach(g => {
+      const on = s.edges.includes(g.dataset.edge);
+      g.classList.toggle('on', on);
+      setMarkers(g, on);
+    });
+    $$('#track .col').forEach(c => {
+      const key = c.dataset.col;
+      const inCol = s.cols.map(String).includes(key);
+      c.classList.toggle('on', inCol);
+      c.querySelectorAll('.dot[data-row]').forEach(d => d.classList.toggle('cur', inCol && s.rows.includes(d.dataset.row)));
+    });
+    restartTimerBar();
+  }
+
+  function restartTimerBar() {
+    const bar = $('#timer');
+    bar.classList.remove('run');
+    if (playing && !reduced) { void bar.offsetWidth; bar.style.setProperty('--dur', $('#speed').value + 'ms'); bar.classList.add('run'); }
+  }
+
+  function setPlayUI() {
+    $('#tPlay').textContent = playing ? 'Pause' : (idx >= STEPS.length - 1 ? 'Replay' : 'Play');
+    $('#bPlay').setAttribute('aria-label', playing ? 'Pause' : 'Play');
+    $('#iPlay').innerHTML = playing ? '<rect x="3" y="2" width="3.5" height="12"/><rect x="9.5" y="2" width="3.5" height="12"/>' : '<path d="M3 2 L14 8 L3 14 z"/>';
+  }
+  function schedule() {
+    clearTimeout(timer);
+    if (!playing) return;
+    timer = setTimeout(() => {
+      if (idx < STEPS.length - 1) { idx++; render(); schedule(); }
+      else { playing = false; setPlayUI(); restartTimerBar(); }
+    }, +$('#speed').value);
+  }
+  function go(i) { idx = Math.max(0, Math.min(STEPS.length - 1, i)); render(); setPlayUI(); schedule(); }
+  function play() { if (idx >= STEPS.length - 1) idx = 0; playing = true; render(); setPlayUI(); schedule(); }
+  function pause() { playing = false; clearTimeout(timer); setPlayUI(); restartTimerBar(); }
+  const toggle = () => (playing ? pause() : play());
+
+  $('#bPlay').addEventListener('click', toggle);
+  $('#bPrev').addEventListener('click', () => go(idx - 1));
+  $('#bNext').addEventListener('click', () => go(idx + 1));
+  $('#bReset').addEventListener('click', () => { pause(); go(0); });
+  $('#speed').addEventListener('change', () => { if (playing) { render(); schedule(); } });
+  scrub.addEventListener('input', () => go(+scrub.value));
+  $('#sOpen').addEventListener('click', e => openTab(e.currentTarget.dataset.tab, { scroll: true }));
+
+  $$('#track .col').forEach(c => {
+    const jump = () => { const key = c.dataset.col; const i = STEPS.findIndex(s => s.cols.map(String).includes(key)); if (i >= 0) go(i); };
+    c.addEventListener('click', jump);
+    c.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); jump(); } });
+  });
+
+  document.addEventListener('keydown', e => {
+    const t = e.target;
+    if (t.closest && t.closest('input, select, textarea, [role="tab"]')) return;
+    if (e.key === 'ArrowRight') { e.preventDefault(); go(idx + 1); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); go(idx - 1); }
+    else if (e.key === ' ' && !(t.closest && t.closest('button, [role="button"]'))) { e.preventDefault(); toggle(); }
+  });
+
+  /* deep link: #embm, #biogem … opens that module */
+  const h = (location.hash || '').slice(1);
+  if (MODS.some(m => m.key === h)) openTab(h);
+
+  render(); setPlayUI();
+})();
+</script>
