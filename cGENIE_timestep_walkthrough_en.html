@@ -1,3 +1,9 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive walkthrough of how the cGENIE.cookie Earth system model steps through time: call order, module coupling and key parameters.">
 <title>cGENIE Time-Step Walkthrough</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -223,11 +229,21 @@ footer { color: var(--muted); font-size: 13px; display: grid; gap: 4px; border-t
   .timer { display: none; }
 }
 </style>
-
+<style>
+html { color-scheme: light; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+img { max-width: 100%; }
+a { color: var(--signal); text-underline-offset: 3px; }
+.toprow { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.lang { font-size: 13.5px; color: var(--signal); text-underline-offset: 3px; }
+</style>
+</head>
+<body>
 <div class="wrap">
 
 <header>
-  <div class="eyebrow">cGENIE.cookie · genie-main/genie.F</div>
+  <div class="toprow"><div class="eyebrow">cGENIE.cookie · genie-main/genie.F</div><a class="lang" href="zh.html" hreflang="zh-CN" lang="zh-CN">中文版</a></div>
   <h1>How cGENIE computes, step by step</h1>
   <p class="lede">The main program is one <code>do koverall = 1, N</code> loop. On every <strong>master step</strong> (about 18 hours) it goes through the modules in a fixed order and asks whether each one is due: the fast atmosphere runs every step, the ocean every 5, ocean biogeochemistry every 10, and the sediments once a year. Modules never call each other; they exchange fluxes and states through shared interface arrays.</p>
   <p class="lede">Numbers are for cookie’s default 36×36×16 grid (worjh2 topography, CBSR = climate + BIOGEM + SEDGEM + ROKGEM base config), with time steps written automatically by <code>runcookie.sh</code>.</p>
@@ -837,3 +853,5 @@ footer { color: var(--muted); font-size: 13px; display: grid; gap: 4px; border-t
   render(); setPlayUI();
 })();
 </script>
+</body>
+</html>
